@@ -4,7 +4,7 @@
  * - two failed checks in a row -> one alert in the Telegram topic "מערכת ושרתים"
  * - still down -> reminder every 3 hours, back up -> a silent message with the downtime
  * - state lives in the ERP (app_settings.uptime_state), so the ERP watches this watcher too
- * - every 15 minutes it also runs the ERP alerts engine (/api/cron/alerts)
+ * - every 15 minutes it also runs the ERP alerts engine (/api/cron/alerts), and at 09:00 Israel time the morning digest
  * Secrets: TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TELEGRAM_TOPIC_ID SUPABASE_URL SUPABASE_ANON_KEY
  *          TARGETS GROUPS CRON_SECRET ERP_URL
  */
@@ -117,9 +117,18 @@ async function runUptime(env, nowMs, dry) {
   return log;
 }
 
-async function runAlertsEngine(env) {
-  const res = await fetch(`${env.ERP_URL}/api/cron/alerts`, { headers: { Authorization: `Bearer ${env.CRON_SECRET}` }, signal: AbortSignal.timeout(90000) });
-  return `alerts engine HTTP ${res.status}`;
+async function runAlertsEngine(env, digest = false) {
+  const res = await fetch(`${env.ERP_URL}/api/cron/alerts${digest ? '?digest=1' : ''}`, { headers: { Authorization: `Bearer ${env.CRON_SECRET}` }, signal: AbortSignal.timeout(90000) });
+  return `alerts engine${digest ? ' + morning digest' : ''} HTTP ${res.status}`;
+}
+
+// The morning message goes out at 09:00 Israel time (Gal, 26.09.2026). Computed in Asia/Jerusalem,
+// so summer and winter time need no change. The ERP dedupes the digest per day.
+const DIGEST_HOUR = 9;
+function israelClock(ts) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ts));
+  const get = t => Number(parts.find(p => p.type === t)?.value);
+  return { hour: get('hour'), minute: get('minute') };
 }
 
 export default {
@@ -127,7 +136,9 @@ export default {
     ctx.waitUntil((async () => {
       await runUptime(env, event.scheduledTime, false);
       const minute = new Date(event.scheduledTime).getUTCMinutes();
-      if (minute % 15 === 5) await runAlertsEngine(env); // :05 :20 :35 :50
+      const il = israelClock(event.scheduledTime);
+      if (il.hour === DIGEST_HOUR && il.minute < 5) await runAlertsEngine(env, true); // 09:00 Israel
+      else if (minute % 15 === 5) await runAlertsEngine(env); // :05 :20 :35 :50
     })());
   },
   // manual run: https://<worker>/?key=<CRON_SECRET>&dry=1
