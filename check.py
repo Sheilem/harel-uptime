@@ -6,7 +6,7 @@ State (who is down since when, what was already alerted) lives in the ERP's
 app_settings row `uptime_state`, so the ERP can show it too.
 
 Everything sensitive comes from repository secrets:
-  TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_TOPIC_ID, SUPABASE_URL, SUPABASE_ANON_KEY,
+  TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_TOPIC_ID, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (or the old SUPABASE_ANON_KEY),
   TARGETS  JSON list: [{"id","name","group","kind":"http"|"tcp","url"|"host"+"port"}]
   GROUPS   JSON map: {"vps": {"title": "...", "buttons": [["text","url"], ...]}, ...}
 """
@@ -31,7 +31,7 @@ TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
 CHAT = int(os.environ['TELEGRAM_CHAT_ID'])
 TOPIC = int(os.environ['TELEGRAM_TOPIC_ID'])
 SB_URL = os.environ['SUPABASE_URL'].rstrip('/')
-SB_KEY = os.environ['SUPABASE_ANON_KEY']
+SB_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or os.environ['SUPABASE_ANON_KEY']   # service key since 26.09.2026
 TARGETS = json.loads(os.environ['TARGETS'])
 GROUPS = json.loads(os.environ.get('GROUPS') or '{}')
 DRY = os.environ.get('DRY') == '1'

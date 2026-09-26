@@ -5,7 +5,7 @@
  * - still down -> reminder every 3 hours, back up -> a silent message with the downtime
  * - state lives in the ERP (app_settings.uptime_state), so the ERP watches this watcher too
  * - every 15 minutes it also runs the ERP alerts engine (/api/cron/alerts), and at 09:00 Israel time the morning digest
- * Secrets: TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TELEGRAM_TOPIC_ID SUPABASE_URL SUPABASE_ANON_KEY
+ * Secrets: TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TELEGRAM_TOPIC_ID SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY (SUPABASE_ANON_KEY = old fallback)
  *          TARGETS GROUPS CRON_SECRET ERP_URL
  */
 import { connect } from 'cloudflare:sockets';
@@ -39,7 +39,9 @@ async function check(t) {
 }
 
 function sbHeaders(env, extra = {}) {
-  return { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', ...extra };
+  // Service key since 26.09.2026: the anon role has no table access any more.
+  const key = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY;
+  return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra };
 }
 
 async function loadState(env) {
