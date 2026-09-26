@@ -1,0 +1,31 @@
+name: alerts
+
+# Keeps the Telegram alert cards fresh every 15 minutes (a paid licence, a new tender, a check that
+# cleared...) even when the VPS is down. The 07:00 morning digest runs from the Vercel cron.
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: alerts
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Run the ERP alerts engine
+        run: |
+          code=$(curl -s -o out.json -w "%{http_code}" --max-time 90 \
+            -H "Authorization: Bearer $CRON_SECRET" "$ERP_URL/api/cron/alerts")
+          echo "HTTP $code"
+          python3 -c "import json;d=json.load(open('out.json'));print(json.dumps({k:d.get(k) for k in ('success','ingest')}, ensure_ascii=False)[:800]);[print(m['module'],m['summary'],'sent',m['sent'],'edited',m['edited'],'resolved',m['resolved'],m['errors']) for m in d.get('modules',[])]" || cat out.json | head -c 800
+          test "$code" -lt 500
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          ERP_URL: ${{ secrets.ERP_URL }}
