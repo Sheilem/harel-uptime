@@ -9,3 +9,16 @@
 - `keepalive` עושה commit קטן פעם בחודש, כי GitHub מכבה תזמון בריפו בלי פעילות 60 יום.
 
 הרצה ידנית: Actions → uptime → Run workflow (אפשר dry).
+
+## Cloudflare Worker (הרץ הראשי מ-26.09.2026)
+
+`worker/` = אותה לוגיקה על Cloudflare Workers עם cron כל 5 דקות, כי התזמון של GitHub לא התחיל לרוץ
+בזמן. ה-workflows של GitHub מושבתים ונשארו לגיבוי ידני בלבד.
+
+```
+cd worker
+npx wrangler deploy                 # CLOUDFLARE_API_TOKEN במשתני הסביבה של המשתמש
+npx wrangler secret bulk secrets.json
+```
+
+בדיקה ידנית: `https://harel-uptime.sheilem.workers.dev/?key=<CRON_SECRET>&dry=1`
